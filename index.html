@@ -13,7 +13,7 @@
       background-color: #f0f0f0;
       margin: 0;
       padding: 0;
-      touch-action: none; /* Prevent pinch/zoom */
+      touch-action: none;
     }
     h1 {
       margin-top: 20px;
@@ -22,14 +22,26 @@
     canvas {
       border: 1px solid #333;
       margin-top: 20px;
-      touch-action: none; /* Prevent pinch zoom */
+      touch-action: none;
     }
     .controls {
       margin-top: 15px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
     }
-    button {
-      margin: 0 5px;
-      padding: 8px 15px;
+    button, input {
+      margin: 5px;
+      padding: 6px 10px;
+      font-size: 14px;
+    }
+    #counter {
+      margin-top: 10px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    label {
       font-size: 14px;
     }
   </style>
@@ -42,22 +54,35 @@
     <button onclick="stopGame()">Stop</button>
     <button onclick="randomizeGrid()">Randomize</button>
     <button onclick="clearGrid()">Clear</button>
+    <label>
+      Speed (ms):
+      <input type="number" id="speedInput" min="50" max="1000" value="200" onchange="updateSpeed()">
+    </label>
+    <label>
+      Grid Size:
+      <input type="number" id="gridInput" min="10" max="100" value="50" onchange="updateGridSize()">
+    </label>
   </div>
+  <div id="counter">Generation: 0 | Population: 0</div>
 
   <script>
     const canvas = document.getElementById('lifeCanvas');
     const ctx = canvas.getContext('2d');
+    const counter = document.getElementById('counter');
+    const speedInput = document.getElementById('speedInput');
+    const gridInput = document.getElementById('gridInput');
 
-    // Responsive canvas
-    const rows = 50;
-    const cols = 50;
-    const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+    let rows = parseInt(gridInput.value);
+    let cols = parseInt(gridInput.value);
+    let size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
     canvas.width = size;
     canvas.height = size;
-    const cellSize = canvas.width / cols;
+    let cellSize = canvas.width / cols;
 
     let grid = createGrid();
     let interval;
+    let generation = 0;
+    let speed = parseInt(speedInput.value);
 
     function createGrid() {
       return Array.from({ length: rows }, () => Array(cols).fill(0));
@@ -65,14 +90,17 @@
 
     function drawGrid() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let population = 0;
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           ctx.fillStyle = grid[r][c] ? 'black' : 'white';
+          if (grid[r][c]) population++;
           ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
           ctx.strokeStyle = '#ccc';
           ctx.strokeRect(c * cellSize, r * cellSize, cellSize, cellSize);
         }
       }
+      counter.textContent = `Generation: ${generation} | Population: ${population}`;
     }
 
     function countNeighbors(r, c) {
@@ -103,22 +131,28 @@
         }
       }
       grid = nextGrid;
+      generation++;
       drawGrid();
     }
 
     function startGame() {
-      if (!interval) interval = setInterval(updateGrid, 200);
+      if (!interval) interval = setInterval(updateGrid, speed);
     }
+
     function stopGame() {
       clearInterval(interval);
       interval = null;
     }
+
     function randomizeGrid() {
       grid = createGrid().map(row => row.map(() => Math.random() > 0.7 ? 1 : 0));
+      generation = 0;
       drawGrid();
     }
+
     function clearGrid() {
       grid = createGrid();
+      generation = 0;
       drawGrid();
     }
 
@@ -143,6 +177,23 @@
       grid[r][c] = grid[r][c] ? 0 : 1;
       drawGrid();
     });
+
+    function updateSpeed() {
+      speed = parseInt(speedInput.value);
+      if (interval) {
+        clearInterval(interval);
+        interval = setInterval(updateGrid, speed);
+      }
+    }
+
+    function updateGridSize() {
+      rows = parseInt(gridInput.value);
+      cols = parseInt(gridInput.value);
+      cellSize = canvas.width / cols;
+      grid = createGrid();
+      generation = 0;
+      drawGrid();
+    }
 
     // Initialize
     randomizeGrid();
