@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Conway's Game of Life</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 0;
+      touch-action: none; /* Prevent pinch/zoom */
+    }
+    h1 {
+      margin-top: 20px;
+      text-align: center;
+    }
+    canvas {
+      border: 1px solid #333;
+      margin-top: 20px;
+      touch-action: none; /* Prevent pinch zoom */
+    }
+    .controls {
+      margin-top: 15px;
+    }
+    button {
+      margin: 0 5px;
+      padding: 8px 15px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Conway's Game of Life</h1>
+  <canvas id="lifeCanvas"></canvas>
+  <div class="controls">
+    <button onclick="startGame()">Start</button>
+    <button onclick="stopGame()">Stop</button>
+    <button onclick="randomizeGrid()">Randomize</button>
+    <button onclick="clearGrid()">Clear</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('lifeCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Responsive canvas
+    const rows = 50;
+    const cols = 50;
+    const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+    canvas.width = size;
+    canvas.height = size;
+    const cellSize = canvas.width / cols;
+
+    let grid = createGrid();
+    let interval;
+
+    function createGrid() {
+      return Array.from({ length: rows }, () => Array(cols).fill(0));
+    }
+
+    function drawGrid() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          ctx.fillStyle = grid[r][c] ? 'black' : 'white';
+          ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+          ctx.strokeStyle = '#ccc';
+          ctx.strokeRect(c * cellSize, r * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    function countNeighbors(r, c) {
+      let count = 0;
+      for (let i = -1; i <= 1; i++) {
+        for (let j = -1; j <= 1; j++) {
+          if (i === 0 && j === 0) continue;
+          const nr = r + i;
+          const nc = c + j;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+            count += grid[nr][nc];
+          }
+        }
+      }
+      return count;
+    }
+
+    function updateGrid() {
+      const nextGrid = createGrid();
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const neighbors = countNeighbors(r, c);
+          if (grid[r][c] === 1) {
+            nextGrid[r][c] = neighbors === 2 || neighbors === 3 ? 1 : 0;
+          } else {
+            nextGrid[r][c] = neighbors === 3 ? 1 : 0;
+          }
+        }
+      }
+      grid = nextGrid;
+      drawGrid();
+    }
+
+    function startGame() {
+      if (!interval) interval = setInterval(updateGrid, 200);
+    }
+    function stopGame() {
+      clearInterval(interval);
+      interval = null;
+    }
+    function randomizeGrid() {
+      grid = createGrid().map(row => row.map(() => Math.random() > 0.7 ? 1 : 0));
+      drawGrid();
+    }
+    function clearGrid() {
+      grid = createGrid();
+      drawGrid();
+    }
+
+    function getCellFromEvent(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+      const c = Math.floor(x / cellSize);
+      const r = Math.floor(y / cellSize);
+      return { r, c };
+    }
+
+    canvas.addEventListener('click', (e) => {
+      const { r, c } = getCellFromEvent(e);
+      grid[r][c] = grid[r][c] ? 0 : 1;
+      drawGrid();
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const { r, c } = getCellFromEvent(e);
+      grid[r][c] = grid[r][c] ? 0 : 1;
+      drawGrid();
+    });
+
+    // Initialize
+    randomizeGrid();
+  </script>
+</body>
+</html>
