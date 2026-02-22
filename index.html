@@ -31,7 +31,7 @@
       justify-content: center;
       gap: 10px;
     }
-    button, input {
+    button, input, label {
       margin: 5px;
       padding: 6px 10px;
       font-size: 14px;
@@ -40,9 +40,6 @@
       margin-top: 10px;
       font-size: 16px;
       font-weight: bold;
-    }
-    label {
-      font-size: 14px;
     }
   </style>
 </head>
@@ -54,6 +51,10 @@
     <button onclick="stopGame()">Stop</button>
     <button onclick="randomizeGrid()">Randomize</button>
     <button onclick="clearGrid()">Clear</button>
+    <button onclick="toggleAutoExpand()">
+      Auto Expand: <span id="autoExpandStatus">Off</span>
+    </button>
+    <button onclick="showAbout()">About</button>
     <label>
       Speed (ms):
       <input type="number" id="speedInput" min="50" max="1000" value="200" onchange="updateSpeed()">
@@ -71,6 +72,7 @@
     const counter = document.getElementById('counter');
     const speedInput = document.getElementById('speedInput');
     const gridInput = document.getElementById('gridInput');
+    const autoExpandStatus = document.getElementById('autoExpandStatus');
 
     let rows = parseInt(gridInput.value);
     let cols = parseInt(gridInput.value);
@@ -83,6 +85,7 @@
     let interval;
     let generation = 0;
     let speed = parseInt(speedInput.value);
+    let autoExpand = false;
 
     function createGrid() {
       return Array.from({ length: rows }, () => Array(cols).fill(0));
@@ -119,42 +122,39 @@
     }
 
     function updateGrid() {
-      const nextGrid = createGrid();
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const neighbors = countNeighbors(r, c);
-          if (grid[r][c] === 1) {
-            nextGrid[r][c] = neighbors === 2 || neighbors === 3 ? 1 : 0;
-          } else {
-            nextGrid[r][c] = neighbors === 3 ? 1 : 0;
-          }
+      // Auto expand if enabled
+      if (autoExpand) {
+        let expandTop = false, expandBottom = false, expandLeft = false, expandRight = false;
+        for (let r = 0; r < rows; r++) {
+          if (grid[r][0] === 1) expandLeft = true;
+          if (grid[r][cols-1] === 1) expandRight = true;
         }
+        for (let c = 0; c < cols; c++) {
+          if (grid[0][c] === 1) expandTop = true;
+          if (grid[rows-1][c] === 1) expandBottom = true;
+        }
+        if (expandTop) { grid.unshift(Array(cols).fill(0)); rows++; }
+        if (expandBottom) { grid.push(Array(cols).fill(0)); rows++; }
+        if (expandLeft) { grid.forEach(row => row.unshift(0)); cols++; }
+        if (expandRight) { grid.forEach(row => row.push(0)); cols++; }
+        cellSize = canvas.width / cols;
       }
+
+      const nextGrid = createGrid().map((row, r) => row.map((_, c) => {
+        const neighbors = countNeighbors(r, c);
+        if (grid[r][c] === 1) return (neighbors === 2 || neighbors === 3) ? 1 : 0;
+        else return (neighbors === 3) ? 1 : 0;
+      }));
+
       grid = nextGrid;
       generation++;
       drawGrid();
     }
 
-    function startGame() {
-      if (!interval) interval = setInterval(updateGrid, speed);
-    }
-
-    function stopGame() {
-      clearInterval(interval);
-      interval = null;
-    }
-
-    function randomizeGrid() {
-      grid = createGrid().map(row => row.map(() => Math.random() > 0.7 ? 1 : 0));
-      generation = 0;
-      drawGrid();
-    }
-
-    function clearGrid() {
-      grid = createGrid();
-      generation = 0;
-      drawGrid();
-    }
+    function startGame() { if (!interval) interval = setInterval(updateGrid, speed); }
+    function stopGame() { clearInterval(interval); interval = null; }
+    function randomizeGrid() { grid = createGrid().map(row => row.map(() => Math.random() > 0.7 ? 1 : 0)); generation=0; drawGrid(); }
+    function clearGrid() { grid = createGrid(); generation=0; drawGrid(); }
 
     function getCellFromEvent(e) {
       const rect = canvas.getBoundingClientRect();
@@ -165,25 +165,20 @@
       return { r, c };
     }
 
-    canvas.addEventListener('click', (e) => {
+    canvas.addEventListener('click', e => {
       const { r, c } = getCellFromEvent(e);
-      grid[r][c] = grid[r][c] ? 0 : 1;
-      drawGrid();
+      if (r < rows && c < cols) { grid[r][c] = grid[r][c] ? 0 : 1; drawGrid(); }
     });
 
-    canvas.addEventListener('touchstart', (e) => {
+    canvas.addEventListener('touchstart', e => {
       e.preventDefault();
       const { r, c } = getCellFromEvent(e);
-      grid[r][c] = grid[r][c] ? 0 : 1;
-      drawGrid();
+      if (r < rows && c < cols) { grid[r][c] = grid[r][c] ? 0 : 1; drawGrid(); }
     });
 
     function updateSpeed() {
       speed = parseInt(speedInput.value);
-      if (interval) {
-        clearInterval(interval);
-        interval = setInterval(updateGrid, speed);
-      }
+      if (interval) { clearInterval(interval); interval = setInterval(updateGrid, speed); }
     }
 
     function updateGridSize() {
@@ -193,6 +188,20 @@
       grid = createGrid();
       generation = 0;
       drawGrid();
+    }
+
+    function toggleAutoExpand() {
+      autoExpand = !autoExpand;
+      autoExpandStatus.textContent = autoExpand ? "On" : "Off";
+    }
+
+    function showAbout() {
+      alert("Conway's Game of Life\n\n" +
+            "Created by John Horton Conway, 1970.\n" +
+            "This is a cellular automaton where cells evolve according to simple rules:\n" +
+            "1. Live cell with <2 or >3 neighbors dies.\n" +
+            "2. Dead cell with 3 neighbors becomes alive.\n" +
+            "Watch patterns emerge!");
     }
 
     // Initialize
